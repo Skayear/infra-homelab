@@ -1,0 +1,23 @@
+global:
+  domain: argocd.local
+
+configs:
+  params:
+    # Permite acceder sin TLS desde el ingress (el ingress maneja TLS)
+    server.insecure: true
+
+server:
+  replicas: 1
+
+repoServer:
+  replicas: 1
+
+applicationSet:
+  replicas: 1
+
+# Desactivar HA — single node homelab
+redis-ha:
+  enabled: false
+
+controller:
+  replicas: 1
