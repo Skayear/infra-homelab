@@ -1,0 +1,4 @@
+---
+# Usar el repo "no-subscription" (gratuito) en vez del enterprise, que requiere
+# licencia paga. Sin esto, `apt update` falla en una instalacion sin suscripcion.
+proxmox_use_no_subscription_repo: true

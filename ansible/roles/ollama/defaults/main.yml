@@ -1,0 +1,8 @@
+---
+ollama_compose_dir: "/opt/ollama"
+ollama_image: "ollama/ollama:latest"
+ollama_port: 11434
+# Modelos a descargar automaticamente al levantar el servicio (ollama pull).
+# Ajustar segun RAM/CPU disponibles en la notebook.
+ollama_models:
+  - "llama3.1:8b"

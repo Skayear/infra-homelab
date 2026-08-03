@@ -1,0 +1,6 @@
+---
+- name: Configure Proxmox hosts
+  hosts: proxmox_nodes
+  roles:
+    - common
+    - proxmox_node

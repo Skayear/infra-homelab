@@ -1,0 +1,8 @@
+---
+# Placeholder: todavia no definiste el framework del agente. Por defecto se
+# levanta n8n (orquestador visual, liviano, corre bien en una Pi, tiene nodos
+# nativos para llamar a Ollama/HTTP APIs) como punto de partida razonable.
+# Cambialo por tu propia imagen cuando definas la arquitectura del agente.
+ai_agent_compose_dir: "/opt/ai-agent"
+ai_agent_image: "n8nio/n8n:latest"
+ai_agent_port: 5678

@@ -1,0 +1,12 @@
+# Generado por Ansible (rol ollama) - no editar a mano en el servidor.
+services:
+  ollama:
+    image: "{{ ollama_image }}"
+    restart: unless-stopped
+    ports:
+      - "{{ ollama_port }}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:

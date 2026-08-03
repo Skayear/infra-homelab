@@ -1,0 +1,10 @@
+---
+# Apunta a las VMs/LXC creadas por OpenTofu con tag "databases".
+# Correr con: ansible-playbook -i inventory/proxmox.yml playbooks/databases.yml --vault-id ...
+- name: Configure database hosts
+  hosts: tag_databases
+  become: true
+  roles:
+    - common
+    - docker
+    - postgres

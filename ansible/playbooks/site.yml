@@ -1,0 +1,13 @@
+---
+# Orquesta todo. Requiere haber corrido `tofu apply` antes (para que existan
+# las VMs/LXC que el inventario dinamico de proxmox.yml va a descubrir).
+#
+#   ansible-playbook playbooks/proxmox-nodes.yml
+#   ansible-playbook playbooks/raspberry-pi.yml
+#   ansible-playbook -i inventory/proxmox.yml playbooks/databases.yml
+#   ansible-playbook -i inventory/proxmox.yml playbooks/model-server.yml
+#
+# Este site.yml junta los dos primeros (inventario estatico). Los de VMs se
+# corren aparte porque usan un inventario distinto (dinamico).
+- import_playbook: proxmox-nodes.yml
+- import_playbook: raspberry-pi.yml

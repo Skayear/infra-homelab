@@ -1,0 +1,8 @@
+# Copiar a terraform.tfvars (gitignoreado) y completar con tus valores reales.
+# NUNCA commitear terraform.tfvars.
+
+proxmox_api_url   = "https://192.168.1.10:8006/"
+proxmox_api_token = "terraform@pve!terraform=00000000-0000-0000-0000-000000000000"
+proxmox_node      = "pve-notebook"
+network_gateway   = "192.168.1.1"
+ssh_public_key    = "ssh-ed25519 AAAA...TODO tu-clave-publica"

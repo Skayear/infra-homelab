@@ -1,0 +1,8 @@
+---
+postgres_compose_dir: "/opt/postgres"
+postgres_image: "pgvector/pgvector:pg16"   # incluye la extension pgvector, util para RAG/embeddings
+postgres_port: 5432
+postgres_db: "homelab"
+postgres_user: "homelab"
+# postgres_password: definila en un vault (ver ansible/inventory/group_vars/*/vault.yml),
+# NUNCA en texto plano en este repo.

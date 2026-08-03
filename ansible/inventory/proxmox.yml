@@ -1,0 +1,29 @@
+# Inventario dinamico: descubre automaticamente las VMs/LXC creadas por OpenTofu
+# en Proxmox, agrupandolas segun el tag que se les asigne (ver opentofu/*.tf).
+#
+# Requiere la coleccion community.general y las credenciales de la API de Proxmox
+# (mismas que usa OpenTofu). Definilas como variables de entorno antes de usarlo:
+#   export PROXMOX_URL="https://192.168.1.10:8006"
+#   export PROXMOX_TOKEN_ID="ansible@pve!ansible"
+#   export PROXMOX_TOKEN_SECRET="xxxxx"
+#
+# Probar con: ansible-inventory -i inventory/proxmox.yml --graph
+plugin: community.general.proxmox
+url: "{{ lookup('env', 'PROXMOX_URL') }}"
+token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+validate_certs: false
+
+want_facts: true
+
+compose:
+  ansible_host: proxmox_ipconfig0_ip | default(proxmox_net0_ip) | default(ansible_host)
+
+# Agrupa cada VM/LXC segun los tags que le pusimos en OpenTofu (variable `tags`
+# en opentofu/modules/vm y opentofu/modules/lxc). Un tag "databases" termina
+# en el grupo "tag_databases", un tag "model_server" en "tag_model_server".
+# Usar solo letras/numeros/guion_bajo en los tags para que el grupo quede bien.
+keyed_groups:
+  - key: proxmox_tags_parsed
+    prefix: tag
+    separator: "_"

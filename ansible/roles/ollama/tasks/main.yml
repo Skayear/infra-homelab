@@ -1,0 +1,33 @@
+---
+- name: Create compose directory
+  ansible.builtin.file:
+    path: "{{ ollama_compose_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ ollama_compose_dir }}/docker-compose.yml"
+    mode: "0640"
+
+- name: Start ollama via docker compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ ollama_compose_dir }}"
+    state: present
+    pull: "missing"
+
+- name: Wait for the API to respond
+  ansible.builtin.uri:
+    url: "http://localhost:{{ ollama_port }}/api/tags"
+    status_code: 200
+  register: ollama_api
+  retries: 10
+  delay: 3
+  until: ollama_api.status == 200
+
+- name: Pull configured models
+  ansible.builtin.command:
+    cmd: "docker exec {{ ollama_compose_dir | basename }}-ollama-1 ollama pull {{ item }}"
+  loop: "{{ ollama_models }}"
+  changed_when: true

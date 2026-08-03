@@ -1,0 +1,6 @@
+---
+timezone: "America/Argentina/Buenos_Aires"   # TODO: ajustar si corresponde
+
+# Claves publicas que se autorizan en todos los hosts. Agregar la tuya.
+ssh_authorized_keys:
+  - "ssh-ed25519 AAAA...TODO tu-clave-publica"

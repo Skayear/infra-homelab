@@ -1,0 +1,16 @@
+# Generado por Ansible (rol postgres) - no editar a mano en el servidor.
+services:
+  postgres:
+    image: "{{ postgres_image }}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "{{ postgres_db }}"
+      POSTGRES_USER: "{{ postgres_user }}"
+      POSTGRES_PASSWORD: "{{ postgres_password }}"
+    ports:
+      - "{{ postgres_port }}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -1,0 +1,8 @@
+---
+- name: Configure the Raspberry Pi (AI agent host, standalone - no Proxmox)
+  hosts: raspberry_pi
+  become: true
+  roles:
+    - common
+    - docker
+    - ai_agent

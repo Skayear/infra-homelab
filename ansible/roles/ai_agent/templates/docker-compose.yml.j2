@@ -1,0 +1,14 @@
+# Generado por Ansible (rol ai_agent) - no editar a mano en el servidor.
+services:
+  agent:
+    image: "{{ ai_agent_image }}"
+    restart: unless-stopped
+    ports:
+      - "{{ ai_agent_port }}:5678"
+    environment:
+      OLLAMA_BASE_URL: "{{ model_server_url }}"
+    volumes:
+      - agent_data:/home/node/.n8n
+
+volumes:
+  agent_data:

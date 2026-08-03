@@ -1,0 +1,5 @@
+---
+# La Pi corre fuera del cluster Proxmox (no soportado oficialmente en ARM):
+# Raspberry Pi OS / Debian ARM64 + Docker, gestionada directo por Ansible.
+ai_agent_compose_dir: "/opt/ai-agent"
+model_server_url: "http://192.168.1.30:11434"  # TODO: IP/puerto del Ollama en la notebook

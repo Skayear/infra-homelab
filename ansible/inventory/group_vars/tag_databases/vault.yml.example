@@ -1,0 +1,9 @@
+# Copiar a vault.yml y encriptar, NUNCA commitear el vault.yml en texto plano:
+#
+#   cp vault.yml.example vault.yml
+#   vim vault.yml   # completar el password real
+#   ansible-vault encrypt vault.yml
+#
+# Para correr playbooks que lo necesiten: agregar --ask-vault-pass o
+# --vault-password-file a los comandos ansible-playbook.
+postgres_password: "CAMBIAR-ESTE-PASSWORD"

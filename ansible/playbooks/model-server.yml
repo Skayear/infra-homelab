@@ -1,0 +1,10 @@
+---
+# Apunta a la VM creada por OpenTofu con tag "model_server".
+# Correr con: ansible-playbook -i inventory/proxmox.yml playbooks/model-server.yml
+- name: Configure the model-serving host
+  hosts: tag_model_server
+  become: true
+  roles:
+    - common
+    - docker
+    - ollama
