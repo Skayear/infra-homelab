@@ -94,3 +94,14 @@ docs/proxmox-setup.md   # Paso a paso manual, unico paso no versionado
   (IOMMU, vendor-reset, etc.) — no esta cubierto todavia.
 - Secrets (passwords, tokens) van con `ansible-vault`, nunca en texto plano.
   Ver `ansible/inventory/group_vars/*/vault.yml.example`.
+- Se evaluo "OpenClaw" como posible reemplazo del placeholder n8n en el rol
+  `ai_agent`, pero se pauso: los resultados de busqueda tenian patron de
+  granja SEO (varios dominios casi identicos promocionando lo mismo,
+  `fast.io`, `getopenclaw.ai`, `openclaw-ai.net`, `open-clawai.com`,
+  `crewclaw.com`), cifras de popularidad poco creibles (~247k stars sin
+  rastro previo), y el perfil de la herramienta (agente autonomo con acceso
+  a WhatsApp/Telegram/Signal/etc. y ejecucion de tareas) es de alto riesgo
+  para correr sin verificar en la red de casa. Antes de retomarlo: confirmar
+  el repo oficial real (si existe) por una fuente confiable, no solo por
+  busqueda web, y revisar el codigo antes de darle acceso a mensajeria o a
+  la red domestica.
