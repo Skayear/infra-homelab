@@ -123,7 +123,9 @@ docs/ci-cd-setup.md      # Idem, para el runner self-hosted y el pipeline
   `docs/ci-cd-setup.md` una vez contra el Proxmox real (generar el keypair
   dedicado, cargar el PAT y la clave privada en vault, `tofu apply`,
   correr `playbooks/ci-runner.yml`, cargar secrets/variables del repo, y
-  configurar el environment `production` con reviewers).
+  configurar el environment `production` con reviewers). Pendiente del lado
+  humano: lo hace el usuario cuando tenga acceso fisico/de red al Proxmox
+  real, no requiere mas trabajo de este repo.
 - OpenClaw se evaluo primero por busqueda web y dio senales de granja SEO
   (dominios casi identicos, cifras de popularidad poco creibles), asi que se
   pauso. Se retomo cuando el usuario paso el link oficial
