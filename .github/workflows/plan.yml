@@ -1,0 +1,93 @@
+# Corre en cada PR contra opentofu/ o ansible/: solo lectura (tofu plan +
+# ansible --check), nunca aplica nada. El apply real es manual, ver apply.yml.
+#
+# IMPORTANTE: usa un runner self-hosted (ver docs/ci-cd-setup.md) porque
+# necesita llegar por red a la API de Proxmox y por SSH a los hosts del
+# homelab. Self-hosted runners con trigger pull_request son inseguros en
+# repos PUBLICOS (un PR de un fork podria ejecutar codigo arbitrario en tu
+# red de casa) - este repo es privado; si alguna vez se hace publico, sacar
+# este trigger o cambiarlo por pull_request_target con restricciones.
+name: Plan (read-only)
+
+on:
+  pull_request:
+    paths:
+      - "opentofu/**"
+      - "ansible/**"
+      - ".github/workflows/**"
+
+concurrency:
+  group: infra-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tofu-plan:
+    name: OpenTofu plan
+    runs-on: [self-hosted, homelab]
+    defaults:
+      run:
+        working-directory: opentofu
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tofu fmt -check
+        run: tofu fmt -recursive -check
+
+      - name: tofu init
+        run: tofu init -input=false
+        env:
+          TF_VAR_proxmox_api_url: ${{ secrets.PROXMOX_URL }}
+          TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
+          TF_VAR_proxmox_node: ${{ vars.PROXMOX_NODE }}
+          TF_VAR_network_gateway: ${{ vars.NETWORK_GATEWAY }}
+          TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+
+      - name: tofu plan
+        run: tofu plan -input=false -no-color -lock=false
+        env:
+          TF_VAR_proxmox_api_url: ${{ secrets.PROXMOX_URL }}
+          TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
+          TF_VAR_proxmox_node: ${{ vars.PROXMOX_NODE }}
+          TF_VAR_network_gateway: ${{ vars.NETWORK_GATEWAY }}
+          TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+
+  ansible-check:
+    name: Ansible syntax-check + --check
+    runs-on: [self-hosted, homelab]
+    defaults:
+      run:
+        working-directory: ansible
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Syntax-check every playbook
+        run: |
+          set -euo pipefail
+          for pb in playbooks/*.yml; do
+            echo "== $pb =="
+            ansible-playbook "$pb" --syntax-check
+          done
+
+      - name: Write vault password to a temp file
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$RUNNER_TEMP/vault-pass"
+
+      - name: Dry-run static-inventory playbooks
+        run: |
+          ansible-playbook playbooks/proxmox-nodes.yml --check --diff --vault-password-file "$RUNNER_TEMP/vault-pass"
+          ansible-playbook playbooks/raspberry-pi.yml --check --diff --vault-password-file "$RUNNER_TEMP/vault-pass"
+
+      - name: Dry-run dynamic-inventory playbooks
+        run: |
+          ansible-playbook -i inventory/proxmox.yml playbooks/databases.yml --check --diff --vault-password-file "$RUNNER_TEMP/vault-pass"
+          ansible-playbook -i inventory/proxmox.yml playbooks/model-server.yml --check --diff --vault-password-file "$RUNNER_TEMP/vault-pass"
+        env:
+          PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
+          PROXMOX_TOKEN_ID: ${{ secrets.PROXMOX_TOKEN_ID }}
+          PROXMOX_TOKEN_SECRET: ${{ secrets.PROXMOX_TOKEN_SECRET }}
+
+      - name: Clean up vault password file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/vault-pass"

@@ -1,0 +1,16 @@
+---
+# Runner self-hosted de GitHub Actions, registrado contra un unico repo
+# (no a nivel organizacion). Ver docs/ci-cd-setup.md para el bootstrap.
+github_runner_repo: "Skayear/infra-homelab"
+
+# Version del paquete actions/runner. Chequear la ultima en
+# https://github.com/actions/runner/releases y actualizar aca.
+github_runner_version: "2.321.0"
+
+# Tienen que matchear el "runs-on: [self-hosted, ...]" de los workflows en
+# .github/workflows/.
+github_runner_labels: "self-hosted,homelab,proxmox"
+github_runner_name: "{{ inventory_hostname }}"
+
+github_runner_user: "runner"
+github_runner_home: "/opt/actions-runner"

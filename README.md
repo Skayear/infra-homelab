@@ -33,10 +33,12 @@ opentofu/          # Crea/destruye VMs y LXC en Proxmox (IaC)
 ansible/            # Configura el software adentro de cada maquina
   inventory/hosts.yml     # Nodos fisicos fijos: notebook (Proxmox), Raspberry Pi
   inventory/proxmox.yml   # Inventario dinamico: descubre VMs/LXC por tag
-  roles/                  # common, proxmox_node, docker, postgres, ollama, ai_agent
+  roles/                  # common, proxmox_node, docker, postgres, ollama, ai_agent, github_runner
   playbooks/               # Uno por grupo de hosts (ver abajo)
 
+.github/workflows/  # Pipeline: plan automatico en PR, apply manual
 docs/proxmox-setup.md   # Paso a paso manual, unico paso no versionado
+docs/ci-cd-setup.md      # Idem, para el runner self-hosted y el pipeline
 ```
 
 ## Orden de ejecucion (de cero)
@@ -80,6 +82,25 @@ docs/proxmox-setup.md   # Paso a paso manual, unico paso no versionado
    ansible-playbook playbooks/raspberry-pi.yml
    ```
 
+6. **(Opcional) Pipeline CI/CD** — corre `plan` (tofu plan + ansible --check)
+   automatico en cada PR, y deja el `apply` real detras de un click manual
+   con aprobacion. Bootstrap unico, ver
+   [`docs/ci-cd-setup.md`](docs/ci-cd-setup.md).
+
+## Pipeline CI/CD
+
+- **`plan.yml`**: se dispara solo en cada PR que toque `opentofu/` o
+  `ansible/`. Corre `tofu fmt -check` + `tofu plan` y
+  `ansible-playbook --syntax-check` + `--check` contra los hosts reales — de
+  solo lectura, nunca aplica nada.
+- **`apply.yml`**: manual (`workflow_dispatch`), elegis que aplicar
+  (OpenTofu o un playbook puntual) desde la pestaña Actions. Corre bajo el
+  environment `production`, que pide aprobacion humana antes de ejecutar.
+- Ambos corren en un runner self-hosted (LXC `ci-runner` en el propio
+  Proxmox, rol `ansible/roles/github_runner`) porque necesitan llegar por
+  red a la API de Proxmox y por SSH a los hosts del homelab — un runner
+  hosteado por GitHub no tiene esa visibilidad.
+
 ## Pendientes / decisiones abiertas
 
 - El rol `ai_agent` instala **OpenClaw** (https://docs.openclaw.ai) como CLI
@@ -97,6 +118,12 @@ docs/proxmox-setup.md   # Paso a paso manual, unico paso no versionado
   (IOMMU, vendor-reset, etc.) — no esta cubierto todavia.
 - Secrets (passwords, tokens) van con `ansible-vault`, nunca en texto plano.
   Ver `ansible/inventory/group_vars/*/vault.yml.example`.
+- El runner de CI (`ci-runner`) todavia no se bootstrapeo en la practica —
+  el rol/workflows estan escritos pero falta correr
+  `docs/ci-cd-setup.md` una vez contra el Proxmox real (generar el keypair
+  dedicado, cargar el PAT y la clave privada en vault, `tofu apply`,
+  correr `playbooks/ci-runner.yml`, cargar secrets/variables del repo, y
+  configurar el environment `production` con reviewers).
 - OpenClaw se evaluo primero por busqueda web y dio senales de granja SEO
   (dominios casi identicos, cifras de popularidad poco creibles), asi que se
   pauso. Se retomo cuando el usuario paso el link oficial

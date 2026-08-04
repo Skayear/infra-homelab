@@ -1,0 +1,123 @@
+---
+# Instala y registra el runner self-hosted de GitHub Actions (paquete oficial
+# actions/runner, no un paquete de distro). Corre como usuario dedicado
+# ({{ github_runner_user }}), nunca como root.
+
+- name: Install runner prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - tar
+      - jq
+      - ansible
+    state: present
+    update_cache: true
+
+- name: Install OpenTofu
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+    chmod +x /tmp/install-opentofu.sh
+    /tmp/install-opentofu.sh --install-method deb
+  args:
+    executable: /bin/bash
+    creates: /usr/bin/tofu
+
+- name: Create dedicated system user for the runner
+  ansible.builtin.user:
+    name: "{{ github_runner_user }}"
+    system: true
+    shell: /bin/bash
+    home: "{{ github_runner_home }}"
+    create_home: true
+
+- name: Create .ssh directory for the runner user
+  ansible.builtin.file:
+    path: "{{ github_runner_home }}/.ssh"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_user }}"
+    mode: "0700"
+
+- name: Deploy the dedicated CI SSH private key
+  ansible.builtin.copy:
+    content: "{{ github_runner_ssh_private_key }}"
+    dest: "{{ github_runner_home }}/.ssh/id_ed25519"
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_user }}"
+    mode: "0600"
+  no_log: true
+
+- name: Disable strict host key checking for the runner user (LAN-only hosts)
+  ansible.builtin.copy:
+    dest: "{{ github_runner_home }}/.ssh/config"
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_user }}"
+    mode: "0600"
+    content: |
+      Host *
+        StrictHostKeyChecking accept-new
+        IdentityFile {{ github_runner_home }}/.ssh/id_ed25519
+
+- name: Check if the runner is already configured
+  ansible.builtin.stat:
+    path: "{{ github_runner_home }}/.runner"
+  register: github_runner_configured
+
+- name: Download, configure and register the runner
+  when: not github_runner_configured.stat.exists
+  block:
+    - name: Download the runner package
+      ansible.builtin.unarchive:
+        src: "https://github.com/actions/runner/releases/download/v{{ github_runner_version }}/actions-runner-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64' }}-{{ github_runner_version }}.tar.gz"
+        dest: "{{ github_runner_home }}"
+        remote_src: true
+        owner: "{{ github_runner_user }}"
+        group: "{{ github_runner_user }}"
+
+    - name: Install runner OS-level dependencies
+      ansible.builtin.command: ./bin/installdependencies.sh
+      args:
+        chdir: "{{ github_runner_home }}"
+
+    - name: Request a runner registration token from GitHub
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ github_runner_repo }}/actions/runners/registration-token"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ github_runner_pat }}"
+          Accept: "application/vnd.github+json"
+        status_code: 201
+        body_format: json
+      register: github_runner_reg_token
+      no_log: true
+
+    - name: Configure (register) the runner against the repo
+      ansible.builtin.command:
+        cmd: >-
+          ./config.sh --unattended --replace
+          --url https://github.com/{{ github_runner_repo }}
+          --token {{ github_runner_reg_token.json.token }}
+          --name {{ github_runner_name }}
+          --labels {{ github_runner_labels }}
+          --work _work
+      args:
+        chdir: "{{ github_runner_home }}"
+      become: true
+      become_user: "{{ github_runner_user }}"
+      no_log: true
+
+- name: Install the runner as a systemd service
+  ansible.builtin.command: ./svc.sh install {{ github_runner_user }}
+  args:
+    chdir: "{{ github_runner_home }}"
+    creates: /etc/systemd/system/actions.runner.*.service
+
+- name: Enable and start the runner service
+  ansible.builtin.shell: |
+    set -euo pipefail
+    unit=$(basename "$(ls /etc/systemd/system/actions.runner.*.service | head -n1)")
+    systemctl enable --now "$unit"
+  args:
+    executable: /bin/bash
+  changed_when: false

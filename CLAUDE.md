@@ -37,6 +37,20 @@ ansible-playbook <playbook>.yml --syntax-check
 ```
 There's no test suite or linter configured in this repo; `tofu fmt -check` and `--syntax-check` are the closest things to CI gates.
 
+### CI/CD (`.github/workflows/`)
+```bash
+# Runs automatically on every PR touching opentofu/ or ansible/: tofu fmt/plan
+# + ansible --syntax-check/--check. Read-only, never applies. See plan.yml.
+
+# Manual only, via the Actions tab (workflow_dispatch), gated behind the
+# `production` GitHub Environment (required reviewers): applies OpenTofu or
+# one specific Ansible playbook. See apply.yml.
+
+# One-time bootstrap of the self-hosted runner that both workflows depend on
+ansible-playbook -i inventory/proxmox.yml playbooks/ci-runner.yml --ask-vault-pass
+```
+Full bootstrap sequence (keypair, PAT, repo secrets/variables, environment protection) is in `docs/ci-cd-setup.md` — it hasn't been run against the real Proxmox host yet, only written.
+
 ## Architecture
 
 - **Two-phase, ordered deployment**: OpenTofu creates a guest → Ansible (via the dynamic inventory) configures what runs inside it. Ansible can't configure a guest OpenTofu hasn't created yet, and the dynamic inventory can't see a guest that lacks the right Proxmox tag. `docs/proxmox-setup.md` covers the one manual, unversioned step before any of this: installing Proxmox VE and creating the `terraform@pve` API token that both OpenTofu and the dynamic inventory authenticate with.
@@ -57,3 +71,5 @@ There's no test suite or linter configured in this repo; `tofu fmt -check` and `
 - **Secrets** are ansible-vault encrypted, never plaintext: `ansible/inventory/group_vars/*/vault.yml` is gitignored, `vault.yml.example` is the committed template. Same pattern applies to `opentofu/terraform.tfvars` (gitignored, holds the Proxmox API token) vs. the committed `terraform.tfvars.example`.
 
 - The cluster is designed to grow from the current single Proxmox node (the notebook) to 2-3 nodes if more x86 hardware is added later — keep that in mind when hardcoding node names (`var.proxmox_node` is already parameterized for this).
+
+- **CI/CD runs on a self-hosted GitHub Actions runner** (LXC `ci-runner`, tag `ci_runner`, `roles/github_runner`), not GitHub-hosted runners — it needs LAN access to the Proxmox API and SSH access to every host, which a GitHub-hosted runner doesn't have. This has real security implications: the runner holds a dedicated SSH keypair (private half in `group_vars/tag_ci_runner/vault.yml`, public half appended to `ssh_authorized_keys` in `group_vars/all.yml`) and a GitHub PAT scoped only to fetching ephemeral runner-registration tokens. `plan.yml` (automatic, on every PR touching `opentofu/` or `ansible/`) is read-only — `tofu plan` and `ansible-playbook --check`, never applies. `apply.yml` is `workflow_dispatch`-only, restricted to the `main` ref, and gated behind the `production` GitHub Environment's required-reviewer approval. **Don't add `pull_request` triggers that run on this self-hosted runner without restricting to non-fork PRs** — that's the classic self-hosted-runner-on-a-public-repo RCE vector; this repo is private today, which is what makes the current setup acceptable. The runner itself is bootstrapped manually once (chicken-and-egg: nothing can apply the Terraform/Ansible that creates the runner before the runner exists) — see `docs/ci-cd-setup.md`.

@@ -1,6 +1,10 @@
 ---
 timezone: "America/Argentina/Buenos_Aires"   # TODO: ajustar si corresponde
 
-# Claves publicas que se autorizan en todos los hosts. Agregar la tuya.
+# Claves publicas que se autorizan en todos los hosts. Agregar la tuya y,
+# ademas, la publica del keypair dedicado del runner de CI (ver
+# ansible/inventory/group_vars/tag_ci_runner/vault.yml.example y
+# docs/ci-cd-setup.md) para que el pipeline pueda conectarse por SSH.
 ssh_authorized_keys:
   - "ssh-ed25519 AAAA...TODO tu-clave-publica"
+  - "ssh-ed25519 AAAA...TODO clave-publica-del-ci-runner"

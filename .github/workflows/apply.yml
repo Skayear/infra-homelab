@@ -1,0 +1,89 @@
+# Apply manual: nunca se dispara solo. Requiere workflow_dispatch (un click
+# humano) y el environment "production" con reviewers obligatorios
+# configurado en GitHub (ver docs/ci-cd-setup.md) - sin eso, este workflow
+# igual pide aprobacion pero de nadie en particular, asi que configurarlo es
+# el paso que realmente lo protege.
+name: Apply (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Que aplicar"
+        required: true
+        type: choice
+        options:
+          - opentofu
+          - ansible-proxmox-nodes
+          - ansible-raspberry-pi
+          - ansible-databases
+          - ansible-model-server
+
+concurrency:
+  group: infra-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply ${{ inputs.target }}
+    # Solo permitir apply desde main, aunque el dispatch se pueda lanzar
+    # eligiendo otra rama en la UI de Actions.
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, homelab]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tofu apply
+        if: inputs.target == 'opentofu'
+        working-directory: opentofu
+        run: |
+          tofu init -input=false
+          tofu apply -input=false -auto-approve
+        env:
+          TF_VAR_proxmox_api_url: ${{ secrets.PROXMOX_URL }}
+          TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
+          TF_VAR_proxmox_node: ${{ vars.PROXMOX_NODE }}
+          TF_VAR_network_gateway: ${{ vars.NETWORK_GATEWAY }}
+          TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+
+      - name: Install collections
+        if: startsWith(inputs.target, 'ansible-')
+        working-directory: ansible
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Write vault password to a temp file
+        if: startsWith(inputs.target, 'ansible-')
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$RUNNER_TEMP/vault-pass"
+
+      - name: ansible-playbook proxmox-nodes
+        if: inputs.target == 'ansible-proxmox-nodes'
+        working-directory: ansible
+        run: ansible-playbook playbooks/proxmox-nodes.yml --vault-password-file "$RUNNER_TEMP/vault-pass"
+
+      - name: ansible-playbook raspberry-pi
+        if: inputs.target == 'ansible-raspberry-pi'
+        working-directory: ansible
+        run: ansible-playbook playbooks/raspberry-pi.yml --vault-password-file "$RUNNER_TEMP/vault-pass"
+
+      - name: ansible-playbook databases
+        if: inputs.target == 'ansible-databases'
+        working-directory: ansible
+        run: ansible-playbook -i inventory/proxmox.yml playbooks/databases.yml --vault-password-file "$RUNNER_TEMP/vault-pass"
+        env:
+          PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
+          PROXMOX_TOKEN_ID: ${{ secrets.PROXMOX_TOKEN_ID }}
+          PROXMOX_TOKEN_SECRET: ${{ secrets.PROXMOX_TOKEN_SECRET }}
+
+      - name: ansible-playbook model-server
+        if: inputs.target == 'ansible-model-server'
+        working-directory: ansible
+        run: ansible-playbook -i inventory/proxmox.yml playbooks/model-server.yml --vault-password-file "$RUNNER_TEMP/vault-pass"
+        env:
+          PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
+          PROXMOX_TOKEN_ID: ${{ secrets.PROXMOX_TOKEN_ID }}
+          PROXMOX_TOKEN_SECRET: ${{ secrets.PROXMOX_TOKEN_SECRET }}
+
+      - name: Clean up vault password file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/vault-pass"

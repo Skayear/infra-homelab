@@ -1,0 +1,10 @@
+---
+# Apunta a la LXC creada por OpenTofu con tag "ci_runner".
+# Bootstrap manual la primera vez (ver docs/ci-cd-setup.md); despues de eso
+# se puede re-correr via el propio workflow_dispatch de apply.yml si hace falta.
+- name: Configure the self-hosted GitHub Actions runner
+  hosts: tag_ci_runner
+  become: true
+  roles:
+    - common
+    - github_runner

@@ -18,6 +18,25 @@ module "databases" {
   tags           = ["databases"]
 }
 
+module "ci_runner" {
+  source = "./modules/lxc"
+
+  # Corre el runner self-hosted de GitHub Actions (ver ansible/roles/github_runner
+  # y .github/workflows/). Se crea/actualiza a mano la primera vez (chicken-and-egg:
+  # todavia no existe un runner que corra el propio pipeline) - ver docs/ci-cd-setup.md.
+  name           = "ci-runner"
+  vmid           = 202
+  node_name      = var.proxmox_node
+  cores          = 2
+  memory         = 2048
+  disk_size      = 20
+  ip_address     = "192.168.1.50/24"
+  gateway        = var.network_gateway
+  bridge         = var.network_bridge
+  ssh_public_key = var.ssh_public_key
+  tags           = ["ci_runner"]
+}
+
 module "model_server" {
   source = "./modules/vm"
 

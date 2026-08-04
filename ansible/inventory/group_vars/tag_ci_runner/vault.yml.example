@@ -1,0 +1,27 @@
+# Copiar a vault.yml y encriptar, NUNCA commitear el vault.yml en texto plano:
+#
+#   cp vault.yml.example vault.yml
+#   vim vault.yml   # completar los valores reales
+#   ansible-vault encrypt vault.yml
+#
+# github_runner_pat: Personal Access Token con permiso para administrar
+# runners de ESTE repo (fine-grained: "Administration" read/write sobre
+# Skayear/infra-homelab; classic: scope "repo"). Se usa solo para pedir un
+# registration-token efimero via la API de GitHub, no queda guardado en el
+# runner. Ver docs/ci-cd-setup.md.
+github_runner_pat: "ghp_CAMBIAR-ESTE-TOKEN"
+
+# github_runner_ssh_private_key: clave PRIVADA dedicada para que el runner
+# se conecte por SSH a los demas hosts (Proxmox, Pi, VMs/LXC). Generarla
+# aparte de tu clave personal:
+#
+#   ssh-keygen -t ed25519 -f ci-runner-key -C "ci-runner@infra-homelab" -N ""
+#
+# La clave PUBLICA (ci-runner-key.pub) va commiteada en texto plano en
+# inventory/group_vars/all.yml (ssh_authorized_keys) para que quede
+# autorizada en todos los hosts. Esta de aca es la privada -> pegar el
+# contenido completo de ci-runner-key (con saltos de linea, formato bloque):
+github_runner_ssh_private_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  CAMBIAR-ESTO-por-el-contenido-real-de-la-clave-privada
+  -----END OPENSSH PRIVATE KEY-----
