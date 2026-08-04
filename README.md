@@ -82,10 +82,13 @@ docs/proxmox-setup.md   # Paso a paso manual, unico paso no versionado
 
 ## Pendientes / decisiones abiertas
 
-- El rol `ai_agent` levanta **n8n** como placeholder razonable (liviano,
-  corre bien en una Pi, tiene nodos nativos para llamar APIs). Cambiarlo por
-  el framework real cuando se defina (LangChain custom, Flowise, etc.) editando
-  `ansible/roles/ai_agent/`.
+- El rol `ai_agent` instala **OpenClaw** (https://docs.openclaw.ai) como CLI
+  nativa + gateway systemd `--user`, con onboarding no interactivo apuntando
+  al Ollama self-hosted de la notebook (`model_server_url`, modelo
+  `llama3.1:8b`) en vez de una API cloud paga. No requiere secrets/vault con
+  este proveedor. Integraciones de mensajeria (Telegram/WhatsApp/Discord) NO
+  estan habilitadas por defecto — son opt-in y de alto acceso, revisar
+  `docs.openclaw.ai` antes de activarlas.
 - `cores`/`memory` de la VM `model-server` en `opentofu/main.tf` son valores
   de ejemplo — ajustar a los recursos reales de la notebook, dejando margen
   para Proxmox y el LXC de `databases`.
@@ -94,14 +97,14 @@ docs/proxmox-setup.md   # Paso a paso manual, unico paso no versionado
   (IOMMU, vendor-reset, etc.) — no esta cubierto todavia.
 - Secrets (passwords, tokens) van con `ansible-vault`, nunca en texto plano.
   Ver `ansible/inventory/group_vars/*/vault.yml.example`.
-- Se evaluo "OpenClaw" como posible reemplazo del placeholder n8n en el rol
-  `ai_agent`, pero se pauso: los resultados de busqueda tenian patron de
-  granja SEO (varios dominios casi identicos promocionando lo mismo,
-  `fast.io`, `getopenclaw.ai`, `openclaw-ai.net`, `open-clawai.com`,
-  `crewclaw.com`), cifras de popularidad poco creibles (~247k stars sin
-  rastro previo), y el perfil de la herramienta (agente autonomo con acceso
-  a WhatsApp/Telegram/Signal/etc. y ejecucion de tareas) es de alto riesgo
-  para correr sin verificar en la red de casa. Antes de retomarlo: confirmar
-  el repo oficial real (si existe) por una fuente confiable, no solo por
-  busqueda web, y revisar el codigo antes de darle acceso a mensajeria o a
-  la red domestica.
+- OpenClaw se evaluo primero por busqueda web y dio senales de granja SEO
+  (dominios casi identicos, cifras de popularidad poco creibles), asi que se
+  pauso. Se retomo cuando el usuario paso el link oficial
+  (`docs.openclaw.ai`); se verifico el repo real en GitHub
+  (`github.com/openclaw/openclaw`, org, actividad de commits diaria, ~30
+  contribuidores, releases versionados) y el `install.sh` oficial (clona ese
+  mismo repo, instala Node.js/dependencias, sin telemetria visible) antes de
+  automatizarlo. Los dominios tipo `getopenclaw.ai` de la busqueda original
+  parecen sitios oportunistas aprovechando la popularidad del proyecto, no el
+  proyecto en si. Pendiente: decidir si se habilita alguna integracion de
+  mensajeria (opt-in, no configurada por defecto).

@@ -1,8 +1,15 @@
 ---
-# Placeholder: todavia no definiste el framework del agente. Por defecto se
-# levanta n8n (orquestador visual, liviano, corre bien en una Pi, tiene nodos
-# nativos para llamar a Ollama/HTTP APIs) como punto de partida razonable.
-# Cambialo por tu propia imagen cuando definas la arquitectura del agente.
-ai_agent_compose_dir: "/opt/ai-agent"
-ai_agent_image: "n8nio/n8n:latest"
-ai_agent_port: 5678
+# OpenClaw: agente de IA personal, instalado como CLI nativa (Node.js) mas
+# gateway systemd --user. Se conecta al Ollama self-hosted que corre en la
+# notebook (Proxmox, VM model-server) en vez de usar una API cloud paga.
+# Docs oficiales: https://docs.openclaw.ai/install/raspberry-pi
+#                 https://docs.openclaw.ai/providers/ollama
+
+ai_agent_node_major: "26"
+
+ai_agent_swapfile_path: "/swapfile"
+ai_agent_swapfile_size_mb: 2048
+
+# Modelo a usar via el Ollama remoto. Tiene que estar en ollama_models
+# (ver ansible/roles/ollama/defaults/main.yml) para que exista en la notebook.
+ai_agent_model_id: "llama3.1:8b"

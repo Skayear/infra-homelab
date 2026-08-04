@@ -1,18 +1,98 @@
 ---
-- name: Create compose directory
-  ansible.builtin.file:
-    path: "{{ ai_agent_compose_dir }}"
-    state: directory
-    mode: "0750"
+# OpenClaw corre como el usuario normal de la Pi (ansible_user), no como
+# root: guarda su estado en ~/.openclaw y su gateway es un servicio systemd
+# --user. Por eso las tareas de instalacion/onboarding usan become: false
+# aunque el playbook completo corra con become: true.
 
-- name: Template docker-compose.yml
-  ansible.builtin.template:
-    src: docker-compose.yml.j2
-    dest: "{{ ai_agent_compose_dir }}/docker-compose.yml"
-    mode: "0640"
-
-- name: Start the agent via docker compose
-  community.docker.docker_compose_v2:
-    project_src: "{{ ai_agent_compose_dir }}"
+- name: Install build dependencies for OpenClaw
+  ansible.builtin.apt:
+    name: build-essential
     state: present
-    pull: "missing"
+
+- name: Check current Node.js version
+  ansible.builtin.command: node --version
+  register: ai_agent_node_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Node.js {{ ai_agent_node_major }} via NodeSource
+  when: ai_agent_node_check.rc != 0 or ('v' ~ ai_agent_node_major ~ '.') not in ai_agent_node_check.stdout
+  block:
+    - name: Run NodeSource setup script
+      ansible.builtin.shell: "curl -fsSL https://deb.nodesource.com/setup_{{ ai_agent_node_major }}.x | bash -"
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Install Node.js package
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: true
+
+- name: Check if swapfile already exists
+  ansible.builtin.stat:
+    path: "{{ ai_agent_swapfile_path }}"
+  register: ai_agent_swapfile_stat
+
+- name: Create and enable swapfile
+  when: not ai_agent_swapfile_stat.stat.exists
+  block:
+    - name: Allocate swapfile
+      ansible.builtin.command: "fallocate -l {{ ai_agent_swapfile_size_mb }}M {{ ai_agent_swapfile_path }}"
+
+    - name: Restrict swapfile permissions
+      ansible.builtin.file:
+        path: "{{ ai_agent_swapfile_path }}"
+        mode: "0600"
+
+    - name: Format swapfile
+      ansible.builtin.command: "mkswap {{ ai_agent_swapfile_path }}"
+
+    - name: Enable swapfile
+      ansible.builtin.command: "swapon {{ ai_agent_swapfile_path }}"
+
+    - name: Persist swapfile in fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "{{ ai_agent_swapfile_path }} none swap sw 0 0"
+
+- name: Lower swappiness (recommended for SD-card-backed swap)
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    state: present
+    reload: true
+
+- name: Check if OpenClaw CLI is already installed
+  ansible.builtin.command: "{{ ansible_user_dir }}/.local/bin/openclaw --version"
+  register: ai_agent_openclaw_check
+  changed_when: false
+  failed_when: false
+  become: false
+
+- name: Install OpenClaw (official installer)
+  ansible.builtin.shell: curl -fsSL https://openclaw.ai/install.sh | bash
+  become: false
+  when: ai_agent_openclaw_check.rc != 0
+
+- name: Check if OpenClaw has already been onboarded
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.openclaw/openclaw.json"
+  register: ai_agent_config_stat
+  become: false
+
+- name: Run OpenClaw non-interactive onboarding (Ollama on the notebook)
+  ansible.builtin.command:
+    cmd: >-
+      {{ ansible_user_dir }}/.local/bin/openclaw onboard
+      --install-daemon --non-interactive --accept-risk
+      --mode local
+      --auth-choice ollama
+      --custom-base-url {{ model_server_url }}
+      --custom-model-id {{ ai_agent_model_id }}
+  become: false
+  when: not ai_agent_config_stat.stat.exists
+
+- name: Enable lingering so the gateway survives reboots without an active login
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  changed_when: false
